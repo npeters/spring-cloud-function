@@ -67,24 +67,23 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 /**
- *
  * @author Oleg Zhurakousky
- *
  */
 public class ServerlessHttpServletRequest implements HttpServletRequest {
 
 	private static final TimeZone GMT = TimeZone.getTimeZone("GMT");
 
 	private static final BufferedReader EMPTY_BUFFERED_READER = new BufferedReader(new StringReader(""));
+	private static final InputStream EMPTY_INPUT_STREAM = new ByteArrayInputStream(new byte[0]);
 
 	/**
 	 * Date formats as specified in the HTTP RFC.
 	 *
 	 * @see <a href="https://tools.ietf.org/html/rfc7231#section-7.1.1.1">Section
-	 *      7.1.1.1 of RFC 7231</a>
+	 * 7.1.1.1 of RFC 7231</a>
 	 */
-	private static final String[] DATE_FORMATS = new String[] { "EEE, dd MMM yyyy HH:mm:ss zzz",
-			"EEE, dd-MMM-yy HH:mm:ss zzz", "EEE MMM dd HH:mm:ss yyyy" };
+	private static final String[] DATE_FORMATS = new String[]{"EEE, dd MMM yyyy HH:mm:ss zzz",
+		"EEE, dd-MMM-yy HH:mm:ss zzz", "EEE MMM dd HH:mm:ss yyyy"};
 
 	private final ServletContext servletContext;
 
@@ -108,7 +107,9 @@ public class ServerlessHttpServletRequest implements HttpServletRequest {
 
 	private final Map<String, String[]> parameters = new LinkedHashMap<>(16);
 
-	/** List of locales in descending order. */
+	/**
+	 * List of locales in descending order.
+	 */
 	private final LinkedList<Locale> locales = new LinkedList<>();
 
 	private boolean asyncStarted = false;
@@ -229,9 +230,9 @@ public class ServerlessHttpServletRequest implements HttpServletRequest {
 	 * Get the content of the request body as a byte array.
 	 *
 	 * @return the content as a byte array (potentially {@code null})
-	 * @since 5.0
 	 * @see #setContent(byte[])
 	 * @see #getContentAsString()
+	 * @since 5.0
 	 */
 	@Nullable
 	public byte[] getContentAsByteArray() {
@@ -247,10 +248,10 @@ public class ServerlessHttpServletRequest implements HttpServletRequest {
 	 *                                      set
 	 * @throws UnsupportedEncodingException if the character encoding is not
 	 *                                      supported
-	 * @since 5.0
 	 * @see #setContent(byte[])
 	 * @see #setCharacterEncoding(String)
 	 * @see #getContentAsByteArray()
+	 * @since 5.0
 	 */
 	@Nullable
 	public String getContentAsString() throws IllegalStateException, UnsupportedEncodingException {
@@ -283,7 +284,14 @@ public class ServerlessHttpServletRequest implements HttpServletRequest {
 
 	@Override
 	public ServletInputStream getInputStream() {
-		InputStream stream = new ByteArrayInputStream(this.content);
+		InputStream stream;
+		if (this.content == null) {
+			stream = EMPTY_INPUT_STREAM;
+		} else {
+			stream = new ByteArrayInputStream(this.content);
+		}
+
+
 		return new ServletInputStream() {
 
 			boolean finished = false;
@@ -320,7 +328,7 @@ public class ServerlessHttpServletRequest implements HttpServletRequest {
 	 * name, they will be replaced.
 	 */
 	public void setParameter(String name, String value) {
-		setParameter(name, new String[] { value });
+		setParameter(name, new String[]{value});
 	}
 
 	/**
@@ -344,13 +352,11 @@ public class ServerlessHttpServletRequest implements HttpServletRequest {
 		params.forEach((key, value) -> {
 			if (value instanceof String) {
 				setParameter(key, (String) value);
-			}
-			else if (value instanceof String[]) {
+			} else if (value instanceof String[]) {
 				setParameter(key, (String[]) value);
-			}
-			else {
+			} else {
 				throw new IllegalArgumentException("Parameter map value must be single value " + " or array of type ["
-						+ String.class.getName() + "]");
+					+ String.class.getName() + "]");
 			}
 		});
 	}
@@ -362,7 +368,7 @@ public class ServerlessHttpServletRequest implements HttpServletRequest {
 	 * name, the given value will be added to the end of the list.
 	 */
 	public void addParameter(String name, @Nullable String value) {
-		addParameter(name, new String[] { value });
+		addParameter(name, new String[]{value});
 	}
 
 	/**
@@ -379,8 +385,7 @@ public class ServerlessHttpServletRequest implements HttpServletRequest {
 			System.arraycopy(oldArr, 0, newArr, 0, oldArr.length);
 			System.arraycopy(values, 0, newArr, oldArr.length, values.length);
 			this.parameters.put(name, newArr);
-		}
-		else {
+		} else {
 			this.parameters.put(name, values);
 		}
 	}
@@ -395,13 +400,11 @@ public class ServerlessHttpServletRequest implements HttpServletRequest {
 		params.forEach((key, value) -> {
 			if (value instanceof String) {
 				addParameter(key, (String) value);
-			}
-			else if (value instanceof String[]) {
+			} else if (value instanceof String[]) {
 				addParameter(key, (String[]) value);
-			}
-			else {
+			} else {
 				throw new IllegalArgumentException("Parameter map value must be single value " + " or array of type ["
-						+ String.class.getName() + "]");
+					+ String.class.getName() + "]");
 			}
 		});
 	}
@@ -477,20 +480,18 @@ public class ServerlessHttpServletRequest implements HttpServletRequest {
 	public BufferedReader getReader() throws UnsupportedEncodingException {
 		if (this.reader != null) {
 			return this.reader;
-		}
-		else if (this.inputStream != null) {
+		} else if (this.inputStream != null) {
 			throw new IllegalStateException(
-					"Cannot call getReader() after getInputStream() has already been called for the current request");
+				"Cannot call getReader() after getInputStream() has already been called for the current request");
 		}
 
 		if (this.content != null) {
 			InputStream sourceStream = new ByteArrayInputStream(this.content);
 			Reader sourceReader = (this.characterEncoding != null)
-					? new InputStreamReader(sourceStream, this.characterEncoding)
-					: new InputStreamReader(sourceStream);
+				? new InputStreamReader(sourceStream, this.characterEncoding)
+				: new InputStreamReader(sourceStream);
 			this.reader = new BufferedReader(sourceReader);
-		}
-		else {
+		} else {
 			this.reader = EMPTY_BUFFERED_READER;
 		}
 		return this.reader;
@@ -519,8 +520,7 @@ public class ServerlessHttpServletRequest implements HttpServletRequest {
 		Assert.notNull(name, "Attribute name must not be null");
 		if (value != null) {
 			this.attributes.put(name, value);
-		}
-		else {
+		} else {
 			this.attributes.remove(name);
 		}
 	}
@@ -741,18 +741,14 @@ public class ServerlessHttpServletRequest implements HttpServletRequest {
 			Object value = header.get(0);
 			if (value instanceof Number) {
 				return ((Number) value).intValue();
-			}
-			else if (value instanceof String) {
+			} else if (value instanceof String) {
 				return Integer.parseInt((String) value);
-			}
-			else if (value != null) {
+			} else if (value != null) {
 				throw new NumberFormatException("Value for header '" + name + "' is not a Number: " + value);
-			}
-			else {
+			} else {
 				return -1;
 			}
-		}
-		else {
+		} else {
 			return -1;
 		}
 	}
@@ -764,22 +760,17 @@ public class ServerlessHttpServletRequest implements HttpServletRequest {
 			Object value = header.get(0);
 			if (value instanceof Date) {
 				return ((Date) value).getTime();
-			}
-			else if (value instanceof Number) {
+			} else if (value instanceof Number) {
 				return ((Number) value).longValue();
-			}
-			else if (value instanceof String) {
+			} else if (value instanceof String) {
 				return parseDateHeader(name, (String) value);
-			}
-			else if (value != null) {
+			} else if (value != null) {
 				throw new IllegalArgumentException(
-						"Value for header '" + name + "' is not a Date, Number, or String: " + value);
-			}
-			else {
+					"Value for header '" + name + "' is not a Date, Number, or String: " + value);
+			} else {
 				return -1L;
 			}
-		}
-		else {
+		} else {
 			return -1;
 		}
 	}
@@ -790,8 +781,7 @@ public class ServerlessHttpServletRequest implements HttpServletRequest {
 			simpleDateFormat.setTimeZone(GMT);
 			try {
 				return simpleDateFormat.parse(value).getTime();
-			}
-			catch (ParseException ex) {
+			} catch (ParseException ex) {
 				// ignore
 			}
 		}
